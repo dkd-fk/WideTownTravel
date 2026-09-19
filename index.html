@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WIDE · 차이나타운 탐방</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--bg:#050505;--card:#171717;--line:#292929;--txt:#f2f2f2;--muted:#8b8b8b;--orange:#c85b3d;--blue:#688aaa;--gold:#a98347}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;font-size:14px}
+.top{height:62px;padding:0 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid #161616}
+.logo{font-size:25px;font-weight:900}
+.meta{font-size:12px;text-align:right;color:var(--muted);flex:1;line-height:1.45}.meta b{color:var(--orange)}
+.screen{min-height:calc(100vh - 62px)}
+.start{display:grid;place-items:center;padding:25px}
+.startbox{width:min(500px,100%);background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px}
+.ey{font-size:12px;color:var(--orange);font-weight:900}
+.start h1{margin:8px 0;font-size:32px}
+.start p{font-size:14px;line-height:1.7;color:#999}
+.teams{display:grid;gap:8px;margin:18px 0}
+.team{padding:14px;border-radius:10px;border:1px solid #333;background:#222;color:#aaa;font-weight:900;font-size:14px}
+.team.on{border-color:var(--orange);background:#34201b;color:#ee8a69}
+.btn{border:0;border-radius:10px;background:#292929;color:#eee;padding:10px 12px;font-weight:800;font-size:13px;cursor:pointer}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.sm{padding:7px 10px;font-size:12px}
+.primary{background:var(--orange);color:#fff}
+.wide{width:100%}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:12px;padding:12px}
+.mapbox,.card{background:var(--card);border:1px solid #222;border-radius:17px;overflow:hidden}
+.mapbox{position:relative}
+.maptitle{position:absolute;z-index:500;top:13px;left:13px;background:#000d;padding:9px 11px;border-radius:11px}
+.maptitle strong{font-size:14px}.maptitle span{display:block;font-size:11px;color:#999;margin-top:2px}
+#map{height:calc(100vh - 88px);min-height:560px}
+.leaflet-tile-pane{filter:grayscale(1) contrast(.9) brightness(1.05)}
+.panel{display:flex;flex-direction:column;gap:9px}
+.card{padding:14px}
+.card h2{font-size:15px;margin:0 0 9px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.stat{background:#1f1f1f;border-radius:10px;padding:9px}.stat small{color:#888;font-size:11px}.stat b{display:block;font-size:17px;margin-top:2px}
+.notice{background:#1e1e1e;padding:10px;border-radius:10px;font-size:12.5px;color:#b0b0b0;line-height:1.55}
+.list{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.item{padding:10px;border-radius:10px;border:1px solid #2b2b2b;background:#1c1c1c;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.item.done{border-color:#456078;background:#202a32}
+.item small{color:#888;display:block;margin-top:2px;font-size:11.5px}
+.badge{font-size:10.5px;padding:4px 8px;border-radius:99px;background:#292929;color:#aaa;white-space:nowrap}
+.badge.blue{background:#202d39;color:#9db6ce}.badge.gold{background:#30281e;color:#d6b97d}.badge.org{background:#34201b;color:#ee8a69}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.rchip{font-size:12px;padding:6px 11px;border-radius:99px;background:#222;color:#777;border:1px solid #2d2d2d;font-weight:800}
+.rchip.now{background:#34201b;color:#ee8a69;border-color:var(--orange)}
+.rchip.done{background:#202a32;color:#9db6ce;border-color:#456078}
+.clues{display:flex;gap:6px;flex-wrap:wrap}
+.clue{font-size:12px;padding:7px 9px;border:1px dashed #444;border-radius:8px;color:#777}
+.clue.found{border-style:solid;color:#b7c9d7;border-color:#456078;background:#202a32}
+.mission p{font-size:13px;color:#bbb;line-height:1.6;margin:8px 0}
+.answer{display:flex;gap:6px;margin-top:8px}
+.answer input,.field{flex:1;min-width:0;background:#101010;border:1px solid #333;color:#fff;border-radius:9px;padding:10px;font-size:14px}
+.res{font-size:12.5px;margin:7px 0;font-weight:800;min-height:16px}
+.qagrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}
+.hidden{display:none!important}
+.toast{position:fixed;z-index:3000;left:50%;bottom:18px;transform:translateX(-50%);background:#171717;border:1px solid #555;border-radius:10px;padding:11px 15px;font-size:13px;display:none;max-width:90vw;text-align:center}
+.toast.show{display:block}
+/* 관리자 */
+.modal{position:fixed;inset:0;z-index:2500;background:#000c;overflow:auto;padding:14px}
+.adm{max-width:640px;margin:0 auto;background:#141414;border:1px solid #3b352b;border-radius:16px;padding:16px}
+.adm h3{margin:16px 0 8px;font-size:14px;color:#d2b783}
+.adm .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}
+.adm table{width:100%;border-collapse:collapse;font-size:12px}
+.adm td,.adm th{padding:5px 6px;border-bottom:1px solid #262626;text-align:left}
+.adm td.mono{font-family:ui-monospace,monospace;color:#999;font-size:11px}
+.adm input[type=number]{width:70px}
+textarea.field{width:100%;height:90px;font-family:ui-monospace,monospace;font-size:11px}
+.me-pulse{filter:drop-shadow(0 0 4px #fff)}
+.banner{border-color:var(--orange);background:#2a1a15}
+textarea.share{height:112px;font-size:12.5px;font-family:inherit;line-height:1.5}
+@media(max-width:850px){.layout{grid-template-columns:1fr}#map{height:54vh;min-height:390px}}
+@media(max-width:520px){.layout{padding:8px}.start{padding:16px}.start h1{font-size:29px}}
+</style></head><body>
+<header class="top"><div class="logo">WIDE</div><div class="meta" id="meta"><b>차이나타운 탐방</b><br>TEAM 선택 전</div><button id="adminBtn" class="btn sm">관리자</button></header>
+
+<section id="start" class="screen start"><div class="startbox">
+<div class="ey">OPEN-WORLD EXPLORATION</div><h1>차이나타운 탐방게임</h1>
+<p>라운드마다 여러 장소 중 원하는 곳을 골라 돌아다니며 문제를 해결하세요. 모든 라운드를 끝내면 숨겨진 최종 장소가 열리고, 그 문제를 풀면 본 게임이 완료돼요.</p>
+<b>참여할 팀을 선택하세요</b>
+<div class="teams" id="teams"></div>
+<button id="startBtn" class="btn primary wide" disabled>탐방 시작</button>
+<div class="notice" id="startNote" style="margin-top:10px"></div>
+</div></section>
+
+<section id="main" class="screen hidden"><main class="layout">
+<section class="mapbox"><div class="maptitle"><strong>개항장 탐방 지도</strong><span id="mapSub">원하는 곳부터 자유롭게 탐방</span></div><div id="map"></div></section>
+<aside class="panel">
+<div class="card"><h2>현재 팀</h2><div class="stats"><div class="stat"><small>TEAM</small><b id="team">-</b></div><div class="stat"><small>점수</small><b id="score">0</b></div><div class="stat"><small>단계</small><b id="phase">-</b></div></div></div>
+
+<div class="card"><h2>📍 위치 확인</h2><div id="locStatus" class="notice">운영 모드에서는 장소 도착을 GPS로 확인합니다.</div><button id="locate" class="btn primary wide" style="margin-top:7px">현재 위치 확인</button></div>
+
+<div id="mission" class="card mission hidden">
+<h2><span id="mTitle">미션</span><span id="mBadge" class="badge">MISSION</span></h2>
+<p id="mDesc"></p>
+<div class="notice" id="mHint"></div>
+<div id="arrBox" class="hidden" style="margin-top:8px"><div class="notice" id="arrText"></div>
+<div class="answer hidden" id="arrCodeRow"><input id="arrCode" placeholder="현장 코드"><button id="arrCodeBtn" class="btn">확인</button></div></div>
+<div class="answer"><input id="answer" placeholder="정답 입력" disabled><button id="submit" class="btn primary" disabled>제출</button></div>
+<div id="result" class="res"></div>
+</div>
+
+<div class="card" id="roundCard"><h2><span>🧭 본 게임</span><span id="roundState" class="badge org"></span></h2>
+<div id="rChips" class="chips"></div><div id="rNote" class="notice"></div><div id="rList" class="list"></div></div>
+
+<div class="card"><h2>🔎 수집한 정보</h2><div id="clues" class="clues"></div></div>
+</aside></main></section>
+
+<div id="adminModal" class="modal hidden"><div class="adm">
+<div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:16px">🛠 관리자</b><button id="admClose" class="btn sm">닫기</button></div>
+
+<h3>팀 설정</h3>
+<div class="row"><label for="tcSel">팀 개수</label><select id="tcSel" class="field" style="flex:0 0 100px"></select><span style="font-size:12px;color:#888">줄여도 뺀 팀의 기록은 지워지지 않고 보관돼요.</span></div>
+<div class="row"><button id="admSwitch" class="btn sm">이 기기의 팀 다시 선택</button></div>
+
+<h3>운영 모드</h3>
+<div class="row"><label><input type="checkbox" id="testMode"> 테스트 모드 (도착 확인·시간 제한 없음)</label></div>
+<div style="font-size:12px;color:#888;line-height:1.5">끄면 실제 운영 규칙이 적용돼요: 12:40~17:00 사이에만 제출 가능, 장소 도착 확인 필요.</div>
+
+<h3>지도 좌표 보정</h3>
+<div class="row"><label><input type="checkbox" id="editMode"> 좌표 보정 모드 (모든 깃발이 보이고 드래그로 이동)</label></div>
+<div style="max-height:260px;overflow:auto"><table><thead><tr><th>장소</th><th>좌표</th><th>반경(m)</th></tr></thead><tbody id="coordRows"></tbody></table></div>
+<div class="row"><button id="coordCopy" class="btn sm">좌표 JSON 만들기</button><button id="coordReset" class="btn sm">보정값 초기화</button></div>
+<textarea id="coordOut" class="field" placeholder="여기에 나온 JSON을 코드의 COORD_FIX에 붙여넣으면 모든 기기에 적용돼요." readonly></textarea>
+
+<h3>QA (현장 이동 없이 이벤트 실행)</h3>
+<div class="qagrid">
+<button id="qsel" class="btn">선택 장소 완료</button><button id="qround" class="btn">현재 라운드 완료</button>
+<button id="qmain" class="btn">본 게임 전체 완주</button><button id="qpoints" class="btn">+10점</button>
+<button id="qclue" class="btn">테스트 단서</button><button id="qreset" class="btn">현재 팀 초기화</button><button id="qall" class="btn">전체 초기화</button>
+</div>
+
+<h3>문제 · 정답 · 힌트 (참가자에게는 보이지 않음)</h3>
+<div class="notice" style="margin-bottom:6px">힌트는 자동으로 노출되지 않아요. 필요하다고 판단될 때만 "힌트 보기"를 눌러 확인한 뒤 참가자에게 직접 알려주세요.</div>
+<div style="max-height:340px;overflow:auto" id="qaBox"></div>
+
+<h3>팀 현황 (이 기기 기준)</h3>
+<table><thead><tr><th>팀</th><th>점수</th><th>단계</th><th>완주</th></tr></thead><tbody id="ovRows"></tbody></table>
+<div style="font-size:12px;color:#888;margin-top:6px">기록은 각 기기에 따로 저장돼요. 팀 폰이 여러 대면 이 표에는 이 기기의 기록만 나와요.</div>
+</div></div>
+
+<div id="toast" class="toast"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+'use strict';
+/* ================================================================
+   설정 — 운영 전에 확인/수정
+================================================================ */
+const CFG={
+  START:'12:40', END:'17:00',
+  ADMIN_PIN:'wide2026',        // ★ 운영 전 반드시 변경
+  TEAM_OPTIONS:[2,3],          // 관리자 화면에서 고를 수 있는 팀 수
+  MAIN_REWARD:0,               // 본 게임 장소 1곳 완료 점수 (빨리 끝내기 경쟁 방지: 0 권장)
+  KEY:'wide_chinatown_v04'
+};
+
+/* 좌표 보정값 — 관리자 화면의 "좌표 JSON 만들기" 결과를 여기에 붙여넣으세요.
+   예: {"gate1":{"lat":37.4751,"lng":126.6179,"r":45}} */
+const COORD_FIX={};
+
+/* ================================================================
+   장소 데이터  (좌표는 제공받은 값 반영 · 현장 확인 후 보정)
+   type: free(야외) / museum(5관) / final(숨겨진 최종 장소)
+   r: 도착 판정 반경(m)   clue: 완료 시 얻는 정보   mission: 미션 내용(비우면 임시 미션)
+================================================================ */
+const PLACES=[
+ {id:'gate1',name:'제1패루',type:'free',lat:37.47563153355141,lng:126.61752302561007,r:40,
+  mission:{desc:'제1패루를 통과하기 전, 고개를 들어 위를 바라보자. 통로 위에는 한자로 쓰인 세 글자가 있다. 첫 번째 글자: 가운데 / 두 번째 글자: 빛날 / 세 번째 글자: 길.\n세 글자를 합쳐 읽었을 때의 우리말 지명을 입력하시오.',answer:['중화로']},
+  hint:'첫 번째 글자는 동서남북의 가운데를 뜻한다. 두 번째 글자는 중국을 나타낼 때 자주 사용된다. 세 번째 글자는 사람들이 다니는 곳이다.'},
+ {id:'street',name:'차이나타운 거리',type:'free',lat:37.4755,lng:126.6186,r:50,
+  mission:{desc:'제1패루를 지나 붉은 장식이 이어지는 길을 따라가 보자. 중국식 호떡이라고 소개되는 독특한 음식이 있다. 겉은 둥글고 크게 부풀어 있지만, 속은 텅 비어 있다.\n이 음식의 이름은 무엇일까?',answer:['공갈빵']},
+  hint:'이름에는 \'거짓말\'과 관련된 단어가 들어간다. 그렇다고 정말 거짓말을 하는 음식은 아니다.'},
+ {id:'mural',name:'삼국지 벽화거리',type:'free',lat:37.47470435372718,lng:126.61988203433323,r:40,
+  mission:{desc:'벽화를 따라가다 보면 한 장면에서 세 명의 인물이 같은 나무 아래에 모여 있다. 그런데 벽화에는 이름표가 없다.\n세 사람의 이름을 가나다순으로 적으시오. (쉼표로 구분)',answer:['관우,유비,장비']},
+  hint:'한 사람은 긴 수염과 청룡언월도를 들고 있다. 한 사람은 무기를 들기보다 두 사람과 함께 맹세를 나누는 중심에 서 있다. 한 사람은 셋 중 체격이 가장 크고 장팔사모를 들고 있다. 세 사람은 복숭아나무 아래에서 의형제를 맺었다.'},
+ {id:'boundary',name:'조계지 경계계단',type:'free',lat:37.47411019108217,lng:126.62003766092155,r:30,
+  mission:{desc:'계단을 따라 위로 올라가라. 하지만 계단을 오르기 전에는 답을 알 수 없다. 정상에 도착하면 계단의 중앙에 한 인물이 서 있다.\n그는 누구인가?',answer:['공자']},
+  hint:'그는 약 2,500년 전 중국에서 활동했다. 무력을 사용해 나라를 다스리기보다 배움과 예(禮)를 중시했다.'},
+ {id:'uiseondang',name:'의선당',type:'free',lat:37.476326213134016,lng:126.61919832653828,r:25,
+  mission:{desc:'의선당 본전에는 다섯 개의 신상이 나란히 자리하고 있다.\n다음은 누구의 신상인가?',answer:['관세음보살']},
+  hint:'전체 다섯 신상 중 정확히 중앙에 있다. 불교에서 자비(慈悲)를 상징하는 인물이다. 이름의 첫 글자는 \'볼 관(觀)\'과 같은 글자이다. 마지막 두 글자는 \'세상의 소리를 듣는다\'는 뜻과 관련되어 있다.'},
+ {id:'park',name:'자유공원',type:'free',lat:37.47537820293375,lng:126.62209726428543,r:60,
+  mission:{desc:'자유공원에 도착했다. 거대한 동상 아래의 받침대를 자세히 살펴보면 영어로 된 문구가 새겨져 있다.\n받침대의 영문 문구를 직접 확인하고, 마지막 두 단어를 대문자로 적으시오.',answer:['DOUGLAS MACARTHUR']},
+  hint:'문구의 마지막 두 단어만 확인하라. 첫 번째 단어: 6글자 / 두 번째 단어: 9글자. 두 단어를 합치면 이 동상이 누구를 기리는지 알 수 있는 이름이 된다.'},
+ {id:'open',name:'개항장 거리',type:'free',lat:37.47339788689808,lng:126.62128197828207,r:50,
+  mission:{desc:'개항장 거리를 걷던 중 한 건물 앞에서 문제가 나타났다. 현재의 이름은 \'박물관\'이다. 하지만 이 건물은 박물관으로 태어나지 않았다.\n인천개항장박물관의 과거 명칭은 무엇인가?',answer:['인천 구 일본제1은행','인천 구 일본제일은행']},
+  hint:'이 건물은 인천이 개항한 뒤 외국 세력이 들어오던 시기에 세워졌다. 건물의 원래 용도는 유물을 전시하는 곳이 아니라 돈과 관련된 기관이었다.'},
+ {id:'jjajang',name:'짜장면박물관',type:'museum',lat:37.474845306355704,lng:126.61818838094764,r:25,clue:'정보 조각 A',
+  mission:{desc:'박물관 안에서 짜장면의 역사를 따라가던 중, 한 시대의 배식 방식에 관한 기록을 발견했다. 그런데 기록에는 오늘날 우리가 흔히 떠올리는 \'배달용기\'라는 표현이 없다.\n1960년대 짜장면을 운반할 때 사용된 이 도구의 현대적인 이름은 무엇인가?',answer:['철가방']},
+  hint:'1960년대에는 짜장면을 여러 그릇 한꺼번에 옮겨야 했다. 손으로 들기에는 불편했고, 여러 개의 그릇을 넣어도 쉽게 망가지지 않는 금속으로 된 운반 도구가 사용되었다. 이 도구는 훗날 짜장면 배달의 상징처럼 여겨지게 된다.'},
+ {id:'modern',name:'인천개항장 근대건축전시관',type:'museum',lat:37.47294039868961,lng:126.62121080528834,r:20,clue:'정보 조각 B',
+  mission:{desc:'전시관 안에서 일본18은행에 관한 설명을 찾아라.\n일본18은행이 인천에 지점을 둔 해는 몇 년인가?',answer:['1890년','1890']},
+  hint:'이 은행은 나가사키(長崎) 상인들이 1877년에 세운 곳이다. 일본 상인들의 면직물 중개무역이 번창하면서 인천에 지점을 두게 되었고, 이 지점은 이 은행이 해외에 세운 최초의 지점이기도 하다. 개점한 달은 그 해 10월이다.'},
+ {id:'opening',name:'인천개항박물관',type:'museum',lat:37.47328072579867,lng:126.620570362617,r:20,clue:'정보 조각 C',
+  mission:{desc:'박물관 안에서 일본제1은행 인천지점에 대한 기록을 찾아라. 이 건물은 단순히 오래된 은행이 아니다. 우리나라 금융사에서 \'최초\'라는 타이틀 하나를 가지고 있다.\n일본제1은행 인천지점이 가진 \'최초의 타이틀\'을 쓰시오.',answer:['우리나라 최초의 근대적 금융기관']},
+  hint:'오늘날의 은행과 같은 형태의 금융 활동을 했다. 개항 이후 서양식·근대식 제도가 들어오던 시기에 등장했다. 전통적인 금융기관이 아닌, 당시로서는 새로운 형태의 금융기관이었다.'},
+ {id:'daebul',name:'대불호텔전시관',type:'museum',lat:37.47356708087044,lng:126.61995844972101,r:20,clue:'정보 조각 D',
+  mission:{desc:'개항장 한가운데, 낯선 모습의 건물이 하나 있다. 서양인과 외국인 여행객을 위한 숙박시설로 운영되었으며, 개항 이후 인천을 찾는 외국인들에게 숙소를 제공했다. 전시관에는 이 건물을 설명하는 \'최초의 타이틀\'이 적혀 있다.\n대불호텔이 가진 \'최초의 타이틀\'을 쓰시오.',answer:['우리나라 최초의 서양식 호텔']},
+  hint:'동양의 전통적인 건축·숙박 형태와 구별되는 양식이다. 여행객이 돈을 내고 머무는 시설이다.'},
+ {id:'hanjung',name:'한중문화관',type:'museum',lat:37.47361270216914,lng:126.61873728739467,r:30,clue:'정보 조각 E',
+  mission:{desc:'한중문화관의 미니어처 전시장에 중국 영화배우들이 모여 있다. 그중 두 사람을 찾아야 한다. 첫 번째 인물: 周潤發. 이 인물과 함께 전시된 다른 배우를 찾아라.\n전시장에 있는 周潤發와 함께 전시된 배우의 한국식 이름을 쓰시오.',answer:['이소룡']},
+  hint:'李振藩. 이 배우는 이후 영어권에서 Bruce Lee라는 이름으로 알려졌다.'},
+ {id:'gate3',name:'제3패루',type:'free',lat:37.47577385310885,lng:126.62044470617958,r:30,
+  mission:{desc:'차이나타운의 마지막 관문에 도착했다. 통로 위쪽에는 세 글자가 새겨져 있다.\n세 글자를 확인하고, 답을 우리말식 독음으로 작성하시오.',answer:['선린문']},
+  hint:'첫 글자: 좋음·선함을 뜻한다. 둘째 글자: 서로 가까이 지내는 사람, 이웃을 뜻한다. 셋째 글자: 사람이 드나드는 통로를 뜻한다. 첫째와 둘째 글자를 합친 두 글자는 단순히 \'좋은 이웃\'이라는 뜻에 그치지 않고, 서로 우호적으로 지내는 관계를 나타내는 표현이 된다.'},
+ {id:'final',name:'제물포구락부',type:'final',lat:37.4746474040742,lng:126.62249379536048,r:25,
+  mission:{desc:'개항장 일대를 돌아다니다 보면 유난히 독특한 건물 하나가 나타난다. 지금은 제물포구락부라고 불리는 이곳. 하지만 이 건물이 처음부터 지금의 이름과 용도로 사용된 것은 아니다. 건물 앞의 설명과 내부 전시를 확인하여 다음 조건을 완성하라.\n제물포구락부가 가진 최초의 타이틀을 쓰시오.',answer:['우리나라 최초의 외국인 사교 클럽']},
+  hint:'이곳은 특정 국가의 관공서가 아니었고, 특정 직업을 가진 사람들만의 공간도 아니었다. 개항 이후 인천에 거주하거나 머물던 여러 나라 사람들이 교류하기 위해 이용했다. 따라서 이곳의 \'최초\'는 건축 양식이나 연도가 아니라 당시 인천에 등장한 사회적 공간의 성격과 관련되어 있다.'}
+];
+
+/* ================================================================
+   라운드 구성  (★ 장소 배치는 임시 — 미션 기획 후 확정)
+   pool: 이 라운드에서 고를 수 있는 장소   need: 해결해야 하는 개수
+   reveal: true 이면 이 라운드가 열릴 때 "새로운 장소 발견" 연출
+   → 앞 라운드를 끝내야 다음 라운드가 열림. 마지막 라운드까지 끝내면 본 게임 완주.
+================================================================ */
+const ROUNDS=[
+ {name:'라운드 1',pool:['gate1','street','mural'],need:3},
+ {name:'라운드 2',pool:['boundary','uiseondang','park','open'],need:4},
+ {name:'라운드 3',pool:['jjajang','modern','opening','daebul','hanjung'],need:5},
+ {name:'라운드 4',pool:['gate3'],need:1},
+ {name:'최종 장소',pool:['final'],need:1,reveal:true}
+];
+
+
+/* ================================================================
+   상태
+================================================================ */
+const $=id=>document.getElementById(id);
+const LETTERS=['A','B','C','D'];
+const BASE=Object.fromEntries(PLACES.map(p=>[p.id,p]));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s).trim().toLowerCase().replace(/\s+/g,'');
+
+function fresh(){return{config:{teamCount:3,testMode:false},team:null,started:false,coords:{},teams:{}}}
+function load(){try{const x=JSON.parse(localStorage.getItem(CFG.KEY));if(x&&x.config)return Object.assign(fresh(),x)}catch(e){}return fresh()}
+function save(){try{localStorage.setItem(CFG.KEY,JSON.stringify(S))}catch(e){}}
+function newTeam(){return{score:0,done:[],arrived:{},clues:[],finishedAt:null}}
+
+let S=load(),active=null,editMode=false,adminAuth=false,pick=null,openHints={};
+(function(){const q=+new URLSearchParams(location.search).get('teams');if(CFG.TEAM_OPTIONS.includes(q)){S.config.teamCount=q;save()}})();
+
+const teamList=()=>LETTERS.slice(0,S.config.teamCount);
+function TM(l){l=l||S.team;return S.teams[l]||(S.teams[l]=newTeam())}
+function P(id){const b=BASE[id],o=Object.assign({},COORD_FIX[id],S.coords[id]);return Object.assign({},b,{lat:o.lat!=null?o.lat:b.lat,lng:o.lng!=null?o.lng:b.lng,r:o.r!=null?o.r:b.r})}
+function mission(p){const o=p.mission||{};
+  const base=p.type==='museum'?'전시를 관찰해 정보를 얻는 미션이 들어갈 자리입니다.':p.type==='final'?'최종 방탈출 콘텐츠가 들어갈 자리입니다.':'이 장소의 관찰·정보·문화 요소를 활용한 미션이 들어갈 자리입니다.';
+  return{desc:o.desc||base+' (임시 미션 — 정답 칸에 “테스트”를 입력하세요.)',answer:o.answer||['테스트'],hint:p.hint||''}}
+
+/* 라운드 진행: cur = 지금 열려 있는 라운드 번호, -1이면 본 게임 완주 */
+function progress(t){
+  const rs=ROUNDS.map(r=>{const d=r.pool.filter(id=>t.done.includes(id)).length;return{d,ok:d>=r.need}});
+  return{rs,cur:rs.findIndex(x=>!x.ok)};
+}
+function visibleIds(){
+  if(editMode)return PLACES.map(p=>p.id);
+  if(!S.team)return[];
+  const t=TM(),cur=progress(t).cur,out=[];
+  ROUNDS.forEach((r,i)=>{
+    if(cur===-1||i<cur){r.pool.forEach(id=>{if(t.done.includes(id))out.push(id)})}
+    else if(i===cur){out.push(...r.pool)}
+  });
+  return out;
+}
+
+/* 시간 */
+function at(hm){const [h,m]=hm.split(':').map(Number),d=new Date();d.setHours(h,m,0,0);return d.getTime()}
+function phase(){const n=Date.now();return n<at(CFG.START)?'before':n>=at(CFG.END)?'ended':'run'}
+function locked(){return !S.config.testMode&&phase()!=='run'}
+function lockMsg(){return phase()==='before'?CFG.START+'에 시작해요.':'활동이 종료되었습니다.'}
+function fmt(ms){const s=Math.max(0,Math.floor(ms/1000)),h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return(h?h+':':'')+String(m).padStart(2,'0')+':'+String(x).padStart(2,'0')}
+function hhmm(ts){const d=new Date(ts);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+function tick(){
+  if(!S.team||!S.started){$('meta').innerHTML='<b>차이나타운 탐방</b><br>TEAM 선택 전'+(S.config.testMode?' · TEST':'');return}
+  const ph=phase();let txt;
+  if(ph==='before')txt='시작 전 · '+CFG.START+' 시작';
+  else if(ph==='ended')txt='종료 · 최종 점수 '+TM().score+'점';
+  else txt='남은 시간 '+fmt(at(CFG.END)-Date.now());
+  $('meta').innerHTML='<b>TEAM '+S.team+'</b><br>'+txt+(S.config.testMode?' · TEST':'');
+}
+setInterval(tick,1000);
+
+function toast(x){const e=$('toast');e.textContent=x;e.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(()=>e.classList.remove('show'),2600)}
+
+/* ================================================================
+   지도
+================================================================ */
+let map=null,layer=null,circles={},me=null;
+function initMap(){
+  if(typeof L==='undefined'){$('map').innerHTML='<div class="notice" style="margin:70px 20px">지도 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 새로고침하세요.</div>';return}
+  map=L.map('map').setView([37.4740,126.6195],16);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);
+  layer=L.layerGroup().addTo(map);
+}
+const color=t=>t==='museum'?'#688aaa':t==='final'?'#a98347':'#c85b3d';
+function flag(c,done){return L.divIcon({className:'',html:`<div style="position:relative;width:30px;height:35px;opacity:${done?.5:1}"><i style="position:absolute;left:10px;top:0;width:3px;height:30px;background:${c}"></i><b style="position:absolute;left:12px;top:1px;width:16px;height:11px;background:${c};clip-path:polygon(0 0,100% 0,75% 100%,0 100%)"></b>${done?'<span style="position:absolute;left:14px;top:-4px;font-size:12px;color:#fff">✓</span>':''}</div>`,iconSize:[30,35],iconAnchor:[11,33]})}
+function drawMarkers(){
+  if(!map)return;
+  layer.clearLayers();circles={};
+  const t=S.team?TM():null;
+  visibleIds().forEach(id=>{
+    const p=P(id),done=!!(t&&t.done.includes(id));
+    const m=L.marker([p.lat,p.lng],{icon:flag(color(p.type),done),draggable:editMode,title:p.name}).addTo(layer);
+    m.bindPopup('<b>'+esc(p.name)+'</b>'+(done?' ✓':''));
+    m.on('click',()=>openPlace(id));
+    if(editMode){
+      circles[id]=L.circle([p.lat,p.lng],{radius:p.r,color:color(p.type),weight:1,fillOpacity:.12}).addTo(layer);
+      m.on('dragend',e=>{const ll=e.target.getLatLng();setCoord(id,{lat:+ll.lat.toFixed(6),lng:+ll.lng.toFixed(6)});circles[id].setLatLng(ll)});
+    }
+    m._pid=id;
+  });
+  layer.eachLayer(l=>{if(l._pid===active&&l.openPopup&&!editMode){}});
+}
+function focusMarker(id){if(!map)return;layer.eachLayer(l=>{if(l._pid===id){map.panTo(l.getLatLng());l.openPopup()}})}
+function setCoord(id,patch){S.coords[id]=Object.assign({},S.coords[id],patch);save();renderCoordRows()}
+
+/* ================================================================
+   화면
+================================================================ */
+function showStart(){
+  $('main').classList.add('hidden');$('start').classList.remove('hidden');
+  const list=teamList(),g=$('teams');
+  g.style.gridTemplateColumns='repeat('+list.length+',1fr)';
+  g.innerHTML=list.map(l=>`<button class="team ${pick===l?'on':''}" data-t="${l}">TEAM ${l}</button>`).join('');
+  g.querySelectorAll('.team').forEach(b=>b.onclick=()=>{pick=b.dataset.t;showStart()});
+  $('startBtn').disabled=!pick;
+  $('startNote').textContent=S.config.testMode?'현재는 테스트 모드입니다. 실제 위치에 가지 않아도 모든 이벤트를 시험할 수 있어요.':'같은 팀 기기에서만 진행하세요. 팀을 바꾸려면 관리자에게 문의하세요.';
+  tick();
+}
+function showMain(){
+  $('start').classList.add('hidden');$('main').classList.remove('hidden');
+  if(!map)initMap();
+  setTimeout(()=>{if(map)map.invalidateSize()},100);
+  render();tick();
+}
+
+function render(){
+  if(!S.team)return;
+  const t=TM(),pr=progress(t),fin=pr.cur===-1;
+  $('team').textContent=S.team;$('score').textContent=t.score;$('phase').textContent=fin?'완료':'본 게임';
+  $('mapSub').textContent=editMode?'좌표 보정 모드 — 깃발을 드래그하세요':(fin?'🏁 본 게임을 완주했습니다!':'원하는 곳부터 자유롭게 탐방');
+
+  /* 본 게임 카드 */
+  $('rChips').innerHTML=ROUNDS.map((r,i)=>{const st=fin||i<pr.cur?'done':i===pr.cur?'now':'';return`<span class="rchip ${st}">${st==='done'?'✓ ':''}${r.reveal?'★':i+1}</span>`}).join('');
+  if(fin){
+    $('roundState').textContent='완주';
+    $('rNote').textContent='🏁 본 게임을 완주했어요'+(t.finishedAt?' ('+hhmm(t.finishedAt)+')':'')+'. 수고하셨습니다!';
+    $('rList').innerHTML='';
+  }else{
+    const r=ROUNDS[pr.cur],d=pr.rs[pr.cur].d;
+    $('roundState').textContent=(r.reveal?'최종':r.name)+' · '+d+'/'+r.need;
+    $('rNote').textContent=r.reveal?'🔓 새로운 장소가 발견되었습니다. 지도에서 깃발을 찾아가세요.':r.pool.length>1?'순서는 자유예요. 아래 '+r.pool.length+'곳을 모두 해결하면 다음 라운드가 열려요.':'이 장소를 해결하면 다음 단계가 열려요.';
+    $('rList').innerHTML=r.pool.map(id=>{const p=P(id),dn=t.done.includes(id);return`<div class="item ${dn?'done':''}" data-id="${id}"><div><b>${esc(p.name)}</b><small>${dn?'✓ 완료':'미해결'}</small></div>${p.type==='museum'?'<span class="badge blue">5관</span>':p.type==='final'?'<span class="badge gold">숨겨진 장소</span>':''}</div>`}).join('');
+    $('rList').querySelectorAll('.item').forEach(e=>e.onclick=()=>{openPlace(e.dataset.id);focusMarker(e.dataset.id)});
+  }
+
+  /* 정보 */
+  $('clues').innerHTML=t.clues.length?t.clues.map(c=>`<span class="clue found">${esc(c.text)}</span>`).join(''):'<span class="clue">아직 없음</span>';
+
+  drawMarkers();renderMission();renderAdmin();
+}
+
+/* ---- 장소 미션 ---- */
+function openPlace(id){
+  if(!visibleIds().includes(id))return toast('아직 열리지 않은 장소입니다.');
+  active=id;$('result').textContent='';$('answer').value='';
+  renderMission();
+  if(map)layer.eachLayer(l=>{if(l._pid===id&&l.openPopup)l.openPopup()});
+  if(window.innerWidth<=850)$('mission').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function renderMission(){
+  const box=$('mission');
+  if(!active||!S.team){box.classList.add('hidden');return}
+  const p=P(active),m=mission(p),t=TM(),pr=progress(t);
+  const done=t.done.includes(active);
+  const avail=!done&&pr.cur!==-1&&ROUNDS[pr.cur].pool.includes(active);
+  const needArr=!S.config.testMode&&!t.arrived[active];
+  box.classList.remove('hidden');
+  $('mTitle').textContent=p.name;
+  $('mBadge').textContent=p.type==='museum'?'5관':p.type==='final'?'FINAL':'MISSION';
+  $('mDesc').textContent=(needArr&&!done)?'🔒 문제는 이 장소에 도착하면 열려요.':m.desc;
+  $('mHint').textContent=done?'✓ 이미 완료했습니다.':!avail?'지금 라운드의 장소가 아니에요.':'미션을 해결하면 라운드 진행에 반영돼요.';
+  const showArr=avail&&needArr;
+  $('arrBox').classList.toggle('hidden',!showArr);
+  if(showArr){$('arrText').textContent='📍 이 장소에 도착했는지 확인이 필요해요. "현재 위치 확인"을 눌러 주세요.'+(p.code?' GPS가 어려우면 현장 코드를 입력하세요.':'');$('arrCodeRow').classList.toggle('hidden',!p.code)}
+  const can=avail&&!needArr;
+  $('answer').disabled=!can;$('submit').disabled=!can;
+}
+function submitMission(){
+  if(!active)return;
+  if(locked())return toast(lockMsg());
+  const v=norm($('answer').value);if(!v)return;
+  const m=mission(P(active));
+  if(m.answer.map(norm).includes(v)){$('answer').value='';$('result').style.color='#8fd19e';$('result').textContent='✓ 정답입니다!';complete(active)}
+  else{$('result').style.color='#e88';$('result').textContent='✗ 정답이 아니에요. 다시 확인해 보세요.'}
+}
+
+/* ---- 완료 처리 (라운드 진행 핵심) ---- */
+function complete(id,opt){
+  opt=opt||{};const t=TM();if(t.done.includes(id))return;
+  const before=progress(t).cur,p=P(id);
+  t.done.push(id);
+  if(p.clue)t.clues.push({id,text:p.clue});
+  t.score+=CFG.MAIN_REWARD;
+  const after=progress(t).cur;
+  if(after===-1&&!t.finishedAt)t.finishedAt=Date.now();
+  save();
+  if(!opt.silent){
+    if(after===-1)toast('🏁 본 게임 완주! 수고하셨습니다.');
+    else if(after!==before)toast(ROUNDS[after].reveal?'🔓 새로운 장소가 발견되었습니다.':'✓ '+ROUNDS[before].name+' 완료 — '+ROUNDS[after].name+' 열림');
+    else toast('✓ '+p.name+' 완료');
+  }
+  render();
+}
+
+/* ---- 위치 확인 ---- */
+function dist(a,b,c,d){const R=6371000,x=(c-a)*Math.PI/180,y=(d-b)*Math.PI/180,z=Math.sin(x/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(y/2)**2;return 2*R*Math.atan2(Math.sqrt(z),Math.sqrt(1-z))}
+function locate(){
+  if(!navigator.geolocation)return toast('이 브라우저에서는 위치 기능을 쓸 수 없어요.');
+  $('locStatus').textContent='현재 위치 확인 중…';
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const a=[pos.coords.latitude,pos.coords.longitude],acc=Math.round(pos.coords.accuracy);
+    if(map){if(me)me.setLatLng(a);else me=L.circleMarker(a,{radius:7,color:'#fff',fillColor:'#111',fillOpacity:1,weight:3}).addTo(map);map.setView(a,17)}
+    const ranked=visibleIds().map(id=>P(id)).map(p=>({p,d:dist(a[0],a[1],p.lat,p.lng)})).sort((x,y)=>x.d-y.d);
+    const hit=ranked.find(x=>x.d<=x.p.r+Math.min(acc,30));
+    if(hit){
+      TM().arrived[hit.p.id]=true;save();
+      $('locStatus').textContent='📍 '+hit.p.name+' 도착 확인 (위치 오차 약 '+acc+'m)';
+      openPlace(hit.p.id);
+    }else{
+      const n=ranked[0];
+      $('locStatus').textContent=n?'가장 가까운 곳은 '+n.p.name+' (약 '+Math.round(n.d)+'m). 아직 도착 범위 밖이에요. (위치 오차 약 '+acc+'m)':'표시된 장소가 없어요.';
+    }
+  },e=>{$('locStatus').textContent='위치 확인 실패: '+e.message+' — 위치 권한과 HTTPS 접속을 확인하세요.'},{enableHighAccuracy:true,timeout:15000,maximumAge:5000});
+}
+
+/* ================================================================
+   관리자
+================================================================ */
+function openAdmin(){
+  if(!adminAuth){const v=prompt('관리자 PIN');if(v===null)return;if(v!==CFG.ADMIN_PIN)return toast('PIN이 맞지 않아요.');adminAuth=true}
+  $('adminModal').classList.remove('hidden');renderAdmin();
+}
+function closeAdmin(){$('adminModal').classList.add('hidden')}
+function renderAdmin(){
+  if($('adminModal').classList.contains('hidden'))return;
+  const sel=$('tcSel');
+  sel.innerHTML=CFG.TEAM_OPTIONS.map(n=>`<option value="${n}" ${n===S.config.teamCount?'selected':''}>${n}팀</option>`).join('');
+  $('testMode').checked=!!S.config.testMode;$('editMode').checked=editMode;
+  renderCoordRows();
+  renderQA();
+  $('ovRows').innerHTML=teamList().map(l=>{const t=S.teams[l]||newTeam(),pr=progress(t);return`<tr><td>${l}</td><td>${t.score}</td><td>${pr.cur===-1?'완주':ROUNDS[pr.cur].name}</td><td>${t.finishedAt?hhmm(t.finishedAt):'-'}</td></tr>`}).join('');
+}
+function renderQA(){
+  const box=$('qaBox');if(!box)return;
+  box.innerHTML=ROUNDS.map((r,ri)=>{
+    const rows=r.pool.map(id=>{
+      const p=P(id),m=mission(p),open=openHints[id];
+      return`<tr><td style="white-space:nowrap"><b>${esc(p.name)}</b></td><td style="max-width:260px;white-space:pre-line">${esc(m.desc)}</td>
+        <td style="color:#8fd19e;font-weight:800">${esc(m.answer.join(' / '))}</td>
+        <td><button class="btn sm hintBtn" data-id="${id}">${open?'힌트 숨기기':'힌트 보기'}</button>
+        ${open?`<div class="notice" style="margin-top:6px;white-space:pre-line">${esc(m.hint||'(등록된 힌트 없음)')}</div>`:''}</td></tr>`;
+    }).join('');
+    return`<table style="margin-bottom:10px"><thead><tr><th colspan="4" style="color:#d2b783">${esc(r.name)}</th></tr>
+      <tr><th>장소</th><th>문제</th><th>정답</th><th>힌트</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }).join('');
+  box.querySelectorAll('.hintBtn').forEach(b=>b.onclick=()=>{openHints[b.dataset.id]=!openHints[b.dataset.id];renderQA()});
+}
+function renderCoordRows(){
+  const tb=$('coordRows');if(!tb)return;
+  tb.innerHTML=PLACES.map(b=>{const p=P(b.id);return`<tr><td>${esc(p.name)}</td><td class="mono">${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</td><td><input type="number" class="field rad" data-id="${p.id}" value="${p.r}" min="10" max="300"></td></tr>`}).join('');
+  tb.querySelectorAll('.rad').forEach(i=>i.onchange=()=>{const r=Math.max(10,Math.min(300,+i.value||40));setCoord(i.dataset.id,{r});if(circles[i.dataset.id])circles[i.dataset.id].setRadius(r)});
+}
+function needTeam(){if(!S.team||!S.started){toast('먼저 팀을 선택하고 탐방을 시작하세요.');return false}return true}
+
+/* ================================================================
+   이벤트
+================================================================ */
+$('startBtn').onclick=()=>{if(!pick)return;S.team=pick;S.started=true;save();showMain()};
+$('adminBtn').onclick=openAdmin;$('admClose').onclick=closeAdmin;
+$('locate').onclick=locate;
+$('submit').onclick=submitMission;$('answer').addEventListener('keydown',e=>{if(e.key==='Enter')submitMission()});
+$('arrCodeBtn').onclick=()=>{if(!active)return;const p=P(active);if(p.code&&norm($('arrCode').value)===norm(p.code)){TM().arrived[active]=true;save();$('arrCode').value='';renderMission();toast('도착이 확인되었어요.')}else toast('코드가 맞지 않아요.')};
+
+$('tcSel').onchange=()=>{
+  const n=+$('tcSel').value;
+  if(n<S.config.teamCount){const gone=LETTERS.slice(n,S.config.teamCount).filter(l=>S.teams[l]&&(S.teams[l].done.length||S.teams[l].score));if(gone.length&&!confirm('TEAM '+gone.join(', ')+'의 진행 기록이 있어요. 팀 수를 줄여도 기록은 보관됩니다. 계속할까요?')){renderAdmin();return}}
+  S.config.teamCount=n;
+  if(S.team&&!teamList().includes(S.team)){S.team=null;S.started=false;active=null}
+  if(pick&&!teamList().includes(pick))pick=null;
+  save();
+  if(!S.started||!S.team)showStart();else render();
+  renderAdmin();
+};
+$('testMode').onchange=()=>{S.config.testMode=$('testMode').checked;save();tick();if(S.started&&S.team)render();else showStart()};
+$('editMode').onchange=()=>{
+  if($('editMode').checked&&!needTeam()){$('editMode').checked=false;return}
+  editMode=$('editMode').checked;render();
+  if(editMode){closeAdmin();toast('깃발을 드래그해 위치를 맞추세요. 끝나면 관리자 → 좌표 JSON 만들기')}
+};
+$('admSwitch').onclick=()=>{S.team=null;S.started=false;active=null;pick=null;editMode=false;save();closeAdmin();showStart()};
+$('coordCopy').onclick=()=>{
+  const out={};PLACES.forEach(b=>{const p=P(b.id);out[b.id]={lat:+p.lat.toFixed(6),lng:+p.lng.toFixed(6),r:p.r}});
+  const txt=JSON.stringify(out);$('coordOut').value=txt;$('coordOut').select();
+  if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(txt).then(()=>toast('복사했어요.'),()=>toast('아래 상자에서 직접 복사하세요.'));
+  else toast('아래 상자에서 직접 복사하세요.');
+};
+$('coordReset').onclick=()=>{if(!confirm('이 기기의 좌표 보정값을 모두 지울까요? (코드의 COORD_FIX는 유지됩니다)'))return;S.coords={};save();render();toast('보정값을 초기화했어요.')};
+
+/* QA */
+function completeRound(silent){
+  const t=TM(),pr=progress(t);if(pr.cur===-1)return;
+  const r=ROUNDS[pr.cur];let need=r.need-pr.rs[pr.cur].d;
+  r.pool.filter(id=>!t.done.includes(id)).slice(0,need).forEach(id=>complete(id,{silent:true}));
+  if(!silent)toast('현재 라운드 완료 처리');
+}
+$('qsel').onclick=()=>{if(!needTeam())return;active?complete(active):toast('먼저 지도에서 장소를 선택하세요')};
+$('qround').onclick=()=>{if(!needTeam())return;completeRound()};
+$('qmain').onclick=()=>{if(!needTeam())return;let g=10;while(progress(TM()).cur!==-1&&g--)completeRound(true);render();toast('본 게임 전체 완주 처리')};
+$('qpoints').onclick=()=>{if(!needTeam())return;TM().score+=10;save();render()};
+$('qclue').onclick=()=>{if(!needTeam())return;const t=TM();t.clues.push({id:'test'+t.clues.length,text:'테스트 단서'});save();render()};
+$('qreset').onclick=()=>{if(!needTeam())return;S.teams[S.team]=newTeam();save();render();toast('현재 팀 초기화')};
+$('qall').onclick=()=>{if(!confirm('모든 팀의 진행 기록을 지울까요? (팀 수·좌표 보정값은 유지)'))return;S.teams={};save();if(S.started&&S.team)render();else renderAdmin();toast('전체 초기화')};
+
+/* 시작 */
+if(S.started&&S.team&&teamList().includes(S.team))showMain();else{S.started=false;S.team=null;showStart()}
+</script></body></html>
